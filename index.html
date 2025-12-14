@@ -1,0 +1,590 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BathControl del Josefa</title>
+    
+    <!-- Estilos (Tailwind CSS) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Motor de la aplicación (React + Babel) -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+
+    <style>
+        body { background-color: #f8fafc; font-family: sans-serif; -webkit-tap-highlight-color: transparent; }
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .touch-manipulation { touch-action: manipulation; }
+    </style>
+</head>
+<body class="pb-8">
+    <div id="root"></div>
+
+
+    <!-- LÓGICA DE LA APP -->
+    <script type="text/babel" data-type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+
+        const { useState, useEffect, useMemo } = React;
+
+
+        // =================================================================
+        // ⚠️ ZONA DE CONFIGURACIÓN
+        // =================================================================
+        
+        // 1. PEGA AQUÍ TUS CLAVES DE FIREBASE (Bórralo todo y pega las tuyas)
+        const firebaseConfig = {
+  apiKey: "AIzaSyA8hmhv86_Yc98_wut0yVLHEkWvmBElRHE",
+  authDomain: "bathcontrol-josefa.firebaseapp.com",
+  projectId: "bathcontrol-josefa",
+  storageBucket: "bathcontrol-josefa.firebasestorage.app",
+  messagingSenderId: "1018452021868",
+  appId: "1:1018452021868:web:99da360a973f76cdaf3e49",
+  measurementId: "G-HQ4BT25LV8"
+};
+
+
+
+
+        // 2. LISTA DE ALUMNOS
+        const INITIAL_STUDENTS = [
+            { name: "Ahmed Cori Hamada , Ismael", grade: "1ºA" },
+{ name: "Akdim , Lina", grade: "1ºA" },
+{ name: "Argudo Barranco, Ana María", grade: "1ºA" },
+{ name: "Bati, Lalla", grade: "1ºA" },
+{ name: "Bellido Ospino, Ángel", grade: "1ºA" },
+{ name: "Beneich López, Yasmina", grade: "1ºA" },
+{ name: "Boumenten , Abdel Nour", grade: "1ºA" },
+{ name: "Cádiz Moreno, Sara", grade: "1ºA" },
+{ name: "Cardona Salazar, Santiago", grade: "1ºA" },
+{ name: "Carrión Ramírez, Fernanda Valeska", grade: "1ºA" },
+{ name: "Colmenares Loreto, María Fernanda", grade: "1ºA" },
+{ name: "Cortés Bermúdez, Paula", grade: "1ºA" },
+{ name: "Cuevas Barba, Isabel", grade: "1ºA" },
+{ name: "Diop Ruiz-Berdejo, Mandiara", grade: "1ºA" },
+{ name: "El Akhal , Islam", grade: "1ºA" },
+{ name: "Fernández Chica, Manuela", grade: "1ºA" },
+{ name: "Guerrero Jiménez, Luis", grade: "1ºA" },
+{ name: "Husain Sajad, Muhammad", grade: "1ºA" },
+{ name: "Jiménez Álvarez, Macarena", grade: "1ºA" },
+{ name: "Mah , Aminetou", grade: "1ºA" },
+{ name: "Martínez Bailón, Yeray", grade: "1ºA" },
+{ name: "Memis Durac, Lucía", grade: "1ºA" },
+{ name: "Pascuas Ariza, Christian Camilo", grade: "1ºA" },
+{ name: "Ruiz Jiménez, Manuel Jesús", grade: "1ºA" },
+{ name: "Memis Durac, Lucía", grade: "1ºA" },
+{ name: "Montoya Loaiza, Kedwin Alexis", grade: "1ºA" },
+{ name: "Morales Palacios, Noelia", grade: "1ºA" },
+{ name: "Mota, Mariia", grade: "1ºA" },
+{ name: "Pascuas Ariza, Christian Camilo", grade: "1ºA" },
+{ name: "Ruiz Jiménez, Manuel Jesús", grade: "1ºA" },
+{ name: "Alba Garrido, Carmen", grade: "2ºA" },
+{ name: "Andino Ruiz, Debby Nahomy", grade: "2ºA" },
+{ name: "Barro Rivero, Ángel", grade: "2ºA" },
+{ name: "Blanco Garrido, Yeray", grade: "2ºA" },
+{ name: "Boumenten , Aya", grade: "2ºA" },
+{ name: "Correa Martínez, Richard Rodrigo", grade: "2ºA" },
+{ name: "Gómez Reyes, Francisco", grade: "2ºA" },
+{ name: "González Caballero, Isaac", grade: "2ºA" },
+{ name: "Heredia Medina, Zoraida Esperanza", grade: "2ºA" },
+{ name: "Jiménez Domínguez, Juan José", grade: "2ºA" },
+{ name: "Lugo Rodríguez, Lucía", grade: "2ºA" },
+{ name: "Méndez Ramírez, Emanuel", grade: "2ºA" },
+{ name: "Mikaylovich González, Nayma", grade: "2ºA" },
+{ name: "Mora Cruz, Juan José", grade: "2ºA" },
+{ name: "Moreno Cádiz, Juana", grade: "2ºA" },
+{ name: "Moreno Escobar, Diego", grade: "2ºA" },
+{ name: "Nieves Largacha, Luis Enrrique", grade: "2ºA" },
+{ name: "Osorio Rojas, Santiago", grade: "2ºA" },
+{ name: "Plantón Martín, Daray", grade: "2ºA" },
+{ name: "Rodríguez Domínguez, Máx", grade: "2ºA" },
+{ name: "Salazar Moreno, Antonio", grade: "2ºA" },
+{ name: "Sánchez Sánchez, Manuel", grade: "2ºA" },
+{ name: "Santiago Miras, Naroha", grade: "2ºA" },
+{ name: "Soto Marente, Adonay", grade: "2ºA" },
+{ name: "Suárez Olivero, Luis Armando", grade: "2ºA" },
+{ name: "Vargas Soto, Lucía", grade: "2ºA" },
+{ name: "Villanueva Viejo, Ángela", grade: "2ºA" },
+{ name: "Balarezo Quiñones, Camilo Albeiro", grade: "3ºA" },
+{ name: "Blanco Garrido, Carmen", grade: "3ºA" },
+{ name: "Conde Ruiz, Carlos Daniel", grade: "3ºA" },
+{ name: "Cristo García, Alejandro", grade: "3ºA" },
+{ name: "De Jesús Cano, Miguel", grade: "3ºA" },
+{ name: "Fernández Morales, Candela", grade: "3ºA" },
+{ name: "Fuentes Herrera, Santiago", grade: "3ºA" },
+{ name: "Gallo Cano, Ainhara", grade: "3ºA" },
+{ name: "García Domínguez, Adonaya", grade: "3ºA" },
+{ name: "Guerrero Vargas, Luis", grade: "3ºA" },
+{ name: "Heredia Giménez, María de los Ángeles", grade: "3ºA" },
+{ name: "Izzat , Jannat", grade: "3ºA" },
+{ name: "Lugo Suárez, Coral", grade: "3ºA" },
+{ name: "Mhamdi, Morad", grade: "3ºA" },
+{ name: "Morales García, Yasmina", grade: "3ºA" },
+{ name: "Nasif Riyani, Arwa", grade: "3ºA" },
+{ name: "Nif, Mounir", grade: "3ºA" },
+{ name: "Ruiz Gálvez, Juan Diego", grade: "3ºA" },
+{ name: "Vargas Jiménez, Adela", grade: "3ºA" },
+{ name: "Virués De Cos, José Manuel", grade: "3ºA" },
+{ name: "Zarhoun, Amjad", grade: "3ºA" },
+{ name: "Abou el Aich, Adam", grade: "4ºA" },
+{ name: "Ardila Franco, Lucía", grade: "4ºA" },
+{ name: "Bocanegra Jiménez, David", grade: "4ºA" },
+{ name: "Boulaich , Azdin", grade: "4ºA" },
+{ name: "Caballero Guevara, Antonio Jesús", grade: "4ºA" },
+{ name: "Casal Fernández, Luisa", grade: "4ºA" },
+{ name: "Dávalos Ibarrola, Victoria Analu", grade: "4ºA" },
+{ name: "De la Rosa Jiménez, Carmelo", grade: "4ºA" },
+{ name: "Doña Barba, Cristina", grade: "4ºA" },
+{ name: "Flores Suárez, Yolanda", grade: "4ºA" },
+{ name: "Franco Valencia, Antonio", grade: "4ºA" },
+{ name: "Fuentes Herrera, Serlus Andrea", grade: "4ºA" },
+{ name: "Gallardo González, Luis", grade: "4ºA" },
+{ name: "Garrido Clavijo, Manuela", grade: "4ºA" },
+{ name: "Jamioy Marín, Anais", grade: "4ºA" },
+{ name: "Jiménez Domínguez, Joaquín Manuel", grade: "4ºA" },
+{ name: "Mey Domínguez, Dulce Estefanía", grade: "4ºA" },
+{ name: "Mohamed Abdellahi Ahmed Baba, Nasiba", grade: "4ºA" },
+{ name: "Monclova De Jesús, Mireia", grade: "4ºA" },
+{ name: "Monge Quirós, Luis", grade: "4ºA" },
+{ name: "Montes Azurmendi, Erika", grade: "4ºA" },
+{ name: "Rebolo Coronado, José Manuel", grade: "4ºA" },
+{ name: "Reguera García, José Manuel", grade: "4ºA" },
+{ name: "Samba, Selmha", grade: "4ºA" },
+{ name: "Sánchez Mije, Zuleima", grade: "4ºA" },
+{ name: "Serrano Jiménez, Omara", grade: "4ºA" },
+{ name: "Suárez Suárez, Rubén", grade: "4ºA" },
+{ name: "Alonso Valencia, Manuel Jesús", grade: "1ºCFGB" },
+{ name: "Báez Tejero, Adrián", grade: "1ºCFGB" },
+{ name: "Calvo Moreno, Joel", grade: "1ºCFGB" },
+{ name: "Cárdenas Morales, Antonio Manuel", grade: "1ºCFGB" },
+{ name: "Corrales Mateos, Daniel", grade: "1ºCFGB" },
+{ name: "De la Calle Carrasco, Yeray", grade: "1ºCFGB" },
+{ name: "De los Reyes Vega, Antonio", grade: "1ºCFGB" },
+{ name: "Encinas Serna, Ignacio", grade: "1ºCFGB" },
+{ name: "Escobar Varela, Aarón", grade: "1ºCFGB" },
+{ name: "Flores Suárez, Francisco Javier", grade: "1ºCFGB" },
+{ name: "Gómez García, Pablo", grade: "1ºCFGB" },
+{ name: "López Romero, Coral", grade: "1ºCFGB" },
+{ name: "Moyano Ferrando, Dennis", grade: "1ºCFGB" },
+{ name: "Navarro López, Jhoander Jose", grade: "1ºCFGB" },
+{ name: "Oliva Martínez, Nahuel Jesús", grade: "1ºCFGB" },
+{ name: "Pérez Herrera, José Ángel", grade: "1ºCFGB" },
+{ name: "Pérez Ligero, Álvaro", grade: "1ºCFGB" },
+{ name: "Seda Postigo, José", grade: "1ºCFGB" },
+{ name: "Silva González, Óscar", grade: "1ºCFGB" },
+{ name: "Suárez Richarte, Naiara", grade: "1ºCFGB" },
+{ name: "Aguilar Ruda, Héctor", grade: "2ºCFGB" },
+{ name: "Boussaid , Mohamed Yassine", grade: "2ºCFGB" },
+{ name: "Gómez Montero, Francisco Javier", grade: "2ºCFGB" },
+{ name: "Gutiérrez Rosado, Juan Antonio", grade: "2ºCFGB" },
+{ name: "Guzmán Salazar, Sebastián", grade: "2ºCFGB" },
+{ name: "López Padilla, Francisco", grade: "2ºCFGB" },
+{ name: "Millán Richarte, Samuel", grade: "2ºCFGB" },
+{ name: "Peña Fernández, Rafael", grade: "2ºCFGB" },
+{ name: "Trujillo Perdigones, Rafael", grade: "2ºCFGB" },
+        ];
+
+
+        // =================================================================
+        // FIN DE LA ZONA DE CONFIGURACIÓN
+        // =================================================================
+
+
+        const isConfigured = !firebaseConfig.apiKey.includes("PEGA_AQUI");
+
+
+        // Iconos
+        const IconBase = ({children, className}) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>;
+        const Activity = ({className}) => <IconBase className={className}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></IconBase>;
+        const CalendarIcon = ({className}) => <IconBase className={className}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></IconBase>;
+        const Clock = ({className}) => <IconBase className={className}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></IconBase>;
+        const CheckCircle = ({className}) => <IconBase className={className}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></IconBase>;
+        const AlertTriangle = ({className}) => <IconBase className={className}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></IconBase>;
+        const History = ({className}) => <IconBase className={className}><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/></IconBase>;
+        const Users = ({className}) => <IconBase className={className}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></IconBase>;
+        const LogOut = ({className}) => <IconBase className={className}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></IconBase>;
+        const X = ({className}) => <IconBase className={className}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></IconBase>;
+        const Info = ({className}) => <IconBase className={className}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></IconBase>;
+        const Trash = ({className}) => <IconBase className={className}><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></IconBase>;
+
+
+        // Inicialización de Firebase
+        let app, auth, db;
+        if (isConfigured) {
+            try {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+            } catch (e) {
+                console.error("Error iniciando Firebase.", e);
+            }
+        }
+
+
+        const STUDENTS_COLLECTION = 'students';
+        const LOGS_COLLECTION = 'logs';
+        const GRADES = ['1ºA', '2ºA', '3ºA', '4ºA', '1ºCFGB', '2ºCFGB'];
+
+
+        function ConfigHelp() {
+            return (
+                <div className="min-h-screen flex items-center justify-center p-4 bg-slate-100">
+                    <div className="bg-white p-8 rounded-xl shadow-xl max-w-lg w-full text-center">
+                        <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <AlertTriangle className="w-8 h-8" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-slate-800 mb-2">¡Falta configurar!</h2>
+                        <p className="text-slate-600 mb-6">
+                            Edita el archivo <code>index.html</code> y pega tus claves de Firebase.
+                        </p>
+                    </div>
+                </div>
+            );
+        }
+
+
+        function App() {
+            if (!isConfigured) return <ConfigHelp />;
+
+
+            const [user, setUser] = useState(null);
+            const [students, setStudents] = useState([]);
+            const [allLogs, setAllLogs] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [selectedGrade, setSelectedGrade] = useState(null);
+            const [currentTime, setCurrentTime] = useState(new Date());
+            const [toasts, setToasts] = useState([]);
+            // Estado para controlar qué registro se está intentando borrar
+            const [deletingId, setDeletingId] = useState(null);
+
+
+            useEffect(() => {
+                const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+                return () => clearInterval(timer);
+            }, []);
+
+
+            useEffect(() => {
+                const initAuth = async () => {
+                    try { await signInAnonymously(auth); } 
+                    catch (e) { console.error("Error de autenticación:", e); }
+                };
+                initAuth();
+                return onAuthStateChanged(auth, setUser);
+            }, []);
+
+
+            useEffect(() => {
+                if (!user) return;
+                
+                const logsRef = collection(db, LOGS_COLLECTION);
+                const unsubLogs = onSnapshot(logsRef, snap => {
+                    const data = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                    data.sort((a, b) => (b.timestampOut?.seconds || 0) - (a.timestampOut?.seconds || 0));
+                    setAllLogs(data);
+                });
+
+
+                const studRef = collection(db, STUDENTS_COLLECTION);
+                const unsubStud = onSnapshot(studRef, async snap => {
+                    if (snap.empty) {
+                        for (const s of INITIAL_STUDENTS) await addDoc(studRef, s);
+                    } else {
+                        const data = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                        setStudents(data.sort((a, b) => a.name.localeCompare(b.name)));
+                    }
+                    setLoading(false);
+                });
+
+
+                return () => { unsubLogs(); unsubStud(); };
+            }, [user]);
+
+
+            const addToast = (message, type = 'info') => {
+                const id = Date.now() + Math.random();
+                setToasts(p => [...p, { id, message, type }]);
+                setTimeout(() => setToasts(p => p.filter(t => t.id !== id)), 6000);
+            };
+
+
+            const getMinutesFromMidnight = (d) => d.getHours() * 60 + d.getMinutes();
+            
+            const getClassFraction = (d) => {
+                const m = getMinutesFromMidnight(d);
+                if (m >= 480 && m < 540) return "1ª Hora (8:00-9:00)";
+                if (m >= 540 && m < 600) return "2ª Hora (9:00-10:00)";
+                if (m >= 600 && m < 660) return "3ª Hora (10:00-11:00)";
+                if (m >= 660 && m < 690) return "Recreo (11:00-11:30)";
+                if (m >= 690 && m < 750) return "4ª Hora (11:30-12:30)";
+                if (m >= 750 && m < 810) return "5ª Hora (12:30-13:30)";
+                if (m >= 810 && m < 870) return "6ª Hora (13:30-14:30)";
+                return "Fuera de Horario";
+            };
+
+
+            const checkIsCentralTime = () => {
+                const m = getMinutesFromMidnight(currentTime);
+                const ranges = [[495, 525], [555, 585], [615, 645], [705, 735], [765, 795], [825, 855]];
+                return ranges.some(([s, e]) => m >= s && m <= e);
+            };
+
+
+            const getCurrentTimeSlot = () => {
+                const m = getMinutesFromMidnight(currentTime);
+                if (m >= 480 && m < 660) return "Primer Tramo";
+                if (m >= 660 && m < 690) return "Recreo";
+                if (m >= 690 && m < 870) return "Segundo Tramo";
+                return "Fuera Horario";
+            };
+
+
+            const getStartOfCurrentWeek = () => {
+                const now = new Date();
+                const day = now.getDay();
+                const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+                const monday = new Date(now.setDate(diff));
+                monday.setHours(0,0,0,0);
+                return monday;
+            };
+
+
+            const getWeekRangeText = () => {
+                const d = new Date(currentTime);
+                const day = d.getDay();
+                const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+                const monday = new Date(d); monday.setDate(diff);
+                const friday = new Date(monday); friday.setDate(monday.getDate() + 4);
+                const month = new Intl.DateTimeFormat('es-ES', { month: 'long' }).format(monday);
+                return `Semana del lunes ${monday.getDate()} al viernes ${friday.getDate()} de ${month}`;
+            };
+
+
+            const currentWeekLogs = useMemo(() => {
+                const start = getStartOfCurrentWeek();
+                return allLogs.filter(l => l.timestampOut && l.timestampOut.toDate() >= start);
+            }, [allLogs]);
+
+
+            const currentFractionName = getClassFraction(currentTime);
+            const isNowCentral = checkIsCentralTime();
+            
+            const currentClassLogs = currentWeekLogs.filter(l => {
+                const logFraction = l.classFraction || (l.timestampOut ? getClassFraction(l.timestampOut.toDate()) : "");
+                const isToday = l.timestampOut?.toDate().toDateString() === new Date().toDateString();
+                return isToday && logFraction === currentFractionName;
+            });
+
+
+            const getStudentStats = (studentId) => {
+                const logs = currentWeekLogs.filter(l => l.studentId === studentId);
+                return {
+                    tram1Count: logs.filter(l => l.timeSlot === "Primer Tramo").length,
+                    tram2Count: logs.filter(l => l.timeSlot === "Segundo Tramo").length,
+                    delayCount: logs.filter(l => l.isLongDuration).length
+                };
+            };
+
+
+            const handleGoOut = async (id, name, grade) => {
+                if (!user) return;
+                const slot = getCurrentTimeSlot();
+                const stats = getStudentStats(id);
+                const isCentral = checkIsCentralTime();
+
+
+                if (stats.delayCount > 0) addToast(`Cuidado, lleva ${stats.delayCount} retrasos esta semana`, "alert");
+                if (!isCentral) addToast("Cuidado, fuera de hora central", "warning");
+                if ((slot === "Primer Tramo" && stats.tram1Count > 0) || (slot === "Segundo Tramo" && stats.tram2Count > 0)) {
+                    addToast("Cuidado, ya ha salido en este tramo", "warning");
+                }
+
+
+                await addDoc(collection(db, LOGS_COLLECTION), {
+                    studentId: id, studentName: name, studentGrade: grade, teacherId: user.uid,
+                    timestampOut: serverTimestamp(), timeSlot: slot, classFraction: getClassFraction(new Date()),
+                    isCentralTime: isCentral, isLongDuration: false
+                });
+            };
+
+
+            const toggleTardiness = async (id, status) => {
+                await updateDoc(doc(db, LOGS_COLLECTION, id), { isLongDuration: !status });
+            };
+
+
+            // Lógica de borrado segura (sin window.confirm para móviles)
+            const initiateDelete = (id) => {
+                if (deletingId === id) {
+                    // Segundo clic: Ejecutar borrado
+                    performDelete(id);
+                } else {
+                    // Primer clic: Pedir confirmación
+                    setDeletingId(id);
+                    // Resetear a los 3 segundos si no confirma
+                    setTimeout(() => setDeletingId(null), 3000);
+                }
+            };
+
+
+            const performDelete = async (id) => {
+                try {
+                    await deleteDoc(doc(db, LOGS_COLLECTION, id));
+                    setDeletingId(null);
+                    addToast("Registro eliminado correctamente", "info");
+                } catch (error) {
+                    console.error("Error borrando:", error);
+                    alert("Error: No tienes permiso para borrar. \n\nAsegúrate de que las reglas de Firebase están en 'Test Mode' o permiten escritura.");
+                    setDeletingId(null);
+                }
+            };
+
+
+            if (loading) return <div className="min-h-screen flex items-center justify-center text-slate-500 font-bold text-lg animate-pulse">Conectando con BathControl...</div>;
+
+
+            return (
+                <div className="min-h-screen relative pb-8">
+                    {/* Alertas Flotantes */}
+                    <div className="fixed top-4 left-4 right-4 md:left-auto md:w-96 z-50 flex flex-col gap-2 pointer-events-none">
+                        {toasts.map(t => (
+                            <div key={t.id} className={`pointer-events-auto flex items-start gap-3 p-4 rounded-xl shadow-xl transform transition-all fade-in border ${t.type === 'alert' ? 'bg-red-600 text-white border-red-700' : 'bg-amber-500 text-white border-amber-600'}`}>
+                                {t.type === 'alert' ? <AlertTriangle className="h-5 w-5 shrink-0"/> : <Info className="h-5 w-5 shrink-0"/>}
+                                <div className="flex-1 text-sm font-bold leading-tight">{t.message}</div>
+                                <button onClick={() => setToasts(p => p.filter(x => x.id !== t.id))} className="opacity-70 hover:opacity-100 p-1"><X className="h-4 w-4"/></button>
+                            </div>
+                        ))}
+                    </div>
+
+
+                    <div className="max-w-4xl mx-auto md:p-8 p-3 space-y-4">
+                        <header className="bg-indigo-600 text-white p-4 md:p-6 rounded-2xl shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                            <div>
+                                <h1 className="text-xl md:text-2xl font-bold flex items-center gap-2">
+                                    <Activity className="h-6 w-6" /> BathControl del Josefa
+                                </h1>
+                                <p className="text-indigo-200 text-xs md:text-sm mt-1 flex items-center gap-1">
+                                    <CalendarIcon className="h-3 w-3" /> {getWeekRangeText()}
+                                </p>
+                            </div>
+                            <div className="flex flex-col items-start md:items-end gap-2 w-full md:w-auto">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <div className="text-xs font-mono bg-indigo-800 px-3 py-1 rounded-full border border-indigo-400/30 whitespace-nowrap">{currentFractionName}</div>
+                                    <div className={`text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1 border whitespace-nowrap ${isNowCentral ? 'bg-green-500 text-white border-green-400' : 'bg-indigo-800/50 text-indigo-200 border-indigo-400/30'}`}>
+                                        {isNowCentral ? <CheckCircle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+                                        {isNowCentral ? 'Hora Central' : 'Fuera Central'}
+                                    </div>
+                                </div>
+                                <div className="text-xs opacity-70 font-mono self-end md:self-auto">{currentTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                            </div>
+                        </header>
+
+
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-2 mb-1 px-1">
+                                <Users className="h-5 w-5 text-slate-600" /> <h3 className="font-semibold text-slate-700">Selecciona Grupo</h3>
+                            </div>
+                            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                                {GRADES.map(g => (
+                                    <button key={g} onClick={() => setSelectedGrade(g)} className={`py-3 px-1 md:px-2 rounded-lg text-sm font-bold transition-all shadow-sm border h-12 flex items-center justify-center ${selectedGrade === g ? 'bg-indigo-600 text-white border-indigo-700 ring-2 ring-indigo-200 transform scale-105' : 'bg-white text-slate-600 border-slate-200 hover:text-indigo-600 active:bg-slate-50'}`}>
+                                        {g}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+
+                        {currentClassLogs.length > 0 ? (
+                            <div className="bg-white border-l-4 border-indigo-400 p-4 rounded-xl shadow-sm">
+                                <h2 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2"><History className="h-5 w-5 text-indigo-500"/> Salidas ({currentClassLogs.length})</h2>
+                                <div className="grid gap-3 md:grid-cols-2">
+                                    {currentClassLogs.map(log => (
+                                        <div key={log.id} className={`flex flex-col p-3 rounded-lg border gap-3 transition-colors ${log.isLongDuration ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
+                                            <div className="min-w-0">
+                                                <div className={`font-bold text-base md:text-lg truncate ${log.isLongDuration ? 'text-red-800' : 'text-slate-800'}`}>{log.studentName}</div>
+                                                <div className="text-xs text-slate-500 flex items-center gap-1">
+                                                    <span className="font-medium bg-slate-200 px-1.5 py-0.5 rounded">{log.studentGrade}</span> <Clock className="h-3 w-3 ml-1"/> {log.timestampOut?.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                </div>
+                                                <div className="flex flex-wrap gap-1 mt-2">
+                                                    {log.isCentralTime && <span className="inline-block px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase tracking-wider">Central</span>}
+                                                    {log.isLongDuration && <span className="inline-block px-2 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded-full uppercase tracking-wider flex items-center gap-1"><AlertTriangle className="h-3 w-3"/> Tardanza</span>}
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="flex gap-2 w-full mt-2">
+                                                <button onClick={() => toggleTardiness(log.id, log.isLongDuration)} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-colors shadow-sm active:scale-95 touch-manipulation ${log.isLongDuration ? 'bg-white text-slate-500 border border-slate-300' : 'bg-orange-100 text-orange-700 border border-orange-200'}`}>
+                                                    {log.isLongDuration ? 'Deshacer Marca' : 'Marcar Tardanza'}
+                                                </button>
+                                                
+                                                {/* BOTÓN ELIMINAR SEGURO */}
+                                                <button 
+                                                    onClick={() => initiateDelete(log.id)} 
+                                                    className={`w-auto px-4 flex items-center justify-center rounded-lg border transition-all shadow-sm active:scale-95 touch-manipulation ${deletingId === log.id ? 'bg-red-600 text-white border-red-700' : 'bg-slate-100 text-slate-400 border-slate-200 hover:bg-red-50 hover:text-red-500 hover:border-red-200'}`} 
+                                                    title={deletingId === log.id ? "Confirmar borrado" : "Eliminar registro"}
+                                                >
+                                                    {deletingId === log.id ? (
+                                                        <span className="text-xs font-bold whitespace-nowrap">¿Seguro?</span>
+                                                    ) : (
+                                                        <Trash className="h-5 w-5"/>
+                                                    )}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="bg-slate-50 border-2 border-dashed border-slate-200 p-6 rounded-xl text-center text-slate-400 text-sm">No hay salidas registradas en {currentFractionName} hoy.</div>
+                        )}
+
+
+                        <div className="bg-white rounded-xl shadow-sm overflow-hidden min-h-[300px]">
+                            <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center sticky top-0 z-10">
+                                <h3 className="font-semibold text-slate-700 truncate max-w-[70%]">{selectedGrade ? `Alumnos de ${selectedGrade}` : 'Selecciona curso'}</h3>
+                                {selectedGrade && <span className="text-xs bg-slate-200 px-2 py-1 rounded-full text-slate-600">{students.filter(s => s.grade === selectedGrade).length}</span>}
+                            </div>
+                            <div className="divide-y divide-slate-100">
+                                {!selectedGrade ? (
+                                    <div className="flex flex-col items-center justify-center h-48 text-slate-400 p-4 text-center"><Users className="h-12 w-12 mb-2 opacity-20"/><p>Pulsa un botón de grupo arriba para ver el listado</p></div>
+                                ) : (
+                                    students.filter(s => s.grade === selectedGrade).map(student => {
+                                        const stats = getStudentStats(student.id);
+                                        return (
+                                            <div key={student.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-slate-50 transition-colors gap-3">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="h-10 w-10 rounded-full flex items-center justify-center shrink-0 bg-indigo-100 text-indigo-600 font-bold text-xs">{student.grade.replace('º', '')}</div>
+                                                    <div>
+                                                        <div className="font-medium text-slate-800 text-base">{student.name}</div>
+                                                        {stats.delayCount > 0 && <div className="text-xs text-red-600 font-bold flex items-center gap-1 mt-0.5"><AlertTriangle className="h-3 w-3"/> {stats.delayCount} retrasos sem.</div>}
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto mt-1 sm:mt-0 bg-slate-50 sm:bg-transparent p-2 sm:p-0 rounded-lg">
+                                                    <div className="flex gap-2 text-[10px] sm:text-xs text-slate-500">
+                                                        <span>T1: <strong class="text-slate-700">{stats.tram1Count}</strong></span> <div class="w-px h-auto bg-slate-300 mx-1"></div> <span>T2: <strong class="text-slate-700">{stats.tram2Count}</strong></span>
+                                                    </div>
+                                                    <button onClick={() => handleGoOut(student.id, student.name, student.grade)} className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all bg-indigo-600 text-white hover:bg-indigo-700 shadow-md active:scale-95 touch-manipulation ml-auto"><LogOut className="h-4 w-4"/> Salir</button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+
+        const root = ReactDOM.createRoot(document.getElementById("root"));
+        root.render(<App />);
+    </script>
+</body>
+</html>
